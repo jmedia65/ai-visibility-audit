@@ -1,6 +1,6 @@
 # AI answer test
 
-Tests what AI tools actually say, not only what the page contains. Two modes, always kept apart and labeled.
+Tests what AI tools actually say, not only what the page contains. Three kinds of evidence, always kept apart and labeled: **Mode A** (the owner runs the prompts in real AI tools), **spot checks** (you read a few real Google AI Overviews in a browser, section 4) and **Mode B** (a web search approximation, section 3).
 
 ## 1. Build the prompts (5-8)
 
@@ -52,6 +52,14 @@ Only if the agent has a web search tool. Otherwise mark Mode B "not run (no web 
 
 **What it shows:** which pages and businesses web search surfaces for these questions, which are the sources AI tools with search are likely to draw from. **What it does not show:** what ChatGPT, Gemini or any other tool actually answers. Label every Mode B result as an approximation, in the table header and in any sentence that uses it.
 
+**Sanity check first.** Search tools differ a lot, and some leave out sites that Google and Bing show first. Before the prompts, search the business's bare domain (`example.com`) and its exact name. If neither search returns the business's own website:
+
+- write in the report: "The search tool used here didn't return your website even for its own domain, so these results may understate how visible you are";
+- don't conclude "not known by name" or "not indexed" from Mode B, and don't use Mode B alone to apply the recommendation cap in `scoring.md`;
+- rely more on spot checks (below) if you can run them, and point the owner to Google Search Console and Bing Webmaster Tools to check indexing.
+
+Never use a `site:` search as proof of anything: tools often return nothing for it even when the site is indexed.
+
 Procedure:
 
 1. Run each prompt through web search exactly as written. For prompts 1-4, also run one keyword version (`[service] [town]`), because search tools treat questions and keywords differently.
@@ -81,3 +89,28 @@ Then two lines:
 - **Recommended:** [how often the business appears for recommendation prompts, e.g. "0 of 5 recommendation searches"]
 
 If known by name but not recommended, say plainly: "AI tools can describe you when someone already knows your name, but are unlikely to suggest you to someone who doesn't."
+
+## 4. Spot checks: real AI Overviews (if you have a real browser)
+
+Mode B shows sources; it doesn't show what an AI tool says. If you have a real browser (a browser pane, a browser extension or similar), you can see a few real AI answers yourself in Google's AI Overviews, which appear at the top of some Google results without signing in.
+
+Procedure:
+
+1. Pick **up to 3** of the prompts: 1 by-name prompt (e.g., "Is [business] in [town] any good?") and 2 recommendation prompts (the main service, and the most valuable service).
+2. Open `https://www.google.com/search?q=<prompt>` in the browser, one at a time. Don't sign in or out, and don't change settings.
+3. If an AI Overview appears, read it (expand "Show more" if needed). Record: was the business named, which competitors were named, which sources were cited, and a short quote of anything said about the business. If none appears, record "no AI Overview shown". That is also a result.
+4. Stop if Google shows a CAPTCHA or an "unusual traffic" page. Don't solve it or retry; note it.
+5. Don't record the location Google shows in the page footer, and don't run more than 3 searches.
+
+Label every spot check **"seen once, [date], not signed in"**. Answers vary by person, place and time, so a spot check is real evidence, not a measurement. Spot checks rank above Mode B and below Mode A results the owner pastes.
+
+Report table:
+
+```
+### Spot checks: real Google AI Overviews (seen once, [date], not signed in)
+
+| Query | AI Overview shown? | You named? | Competitors named | Sources cited | What it said about you |
+|-------|--------------------|------------|-------------------|---------------|------------------------|
+```
+
+Other AI tools (ChatGPT, Perplexity, Gemini, Google AI Mode) mostly need an account or behave differently when automated, so they stay in Mode A for the owner.

@@ -23,11 +23,11 @@ These keep the report trustworthy. An audit that invents one finding loses the o
 - **Label approximations.** The web-search mode of the AI answer test is not what AI tools actually answer. Say "approximation" everywhere it appears.
 - **Plain English.** Many readers are not developers. Explain a technical term in one line the first time you use it. No hype, no promises of rankings, citations or traffic.
 - **Respect the owner's choices.** Blocking AI *training* bots while allowing *search* bots is a valid setup, not a mistake.
-- **Stay in bounds.** No logging in, no scraping Google Maps or other sites that forbid it, no paid services unless the user has connected them and agrees. Nothing industry-specific, legal or professional advice.
+- **Stay in bounds.** If you have a real browser, two things are fine: opening a Business Profile link the user gave you, once, and reading what it shows; and a few Google searches to see real AI Overviews (details in the checklist and prompt templates). Beyond that: no logging in, no automated scraping of Google Maps or search results (no data endpoints, no bulk queries), no solving CAPTCHAs, no paid services unless the user has connected them and agrees. Nothing industry-specific, legal or professional advice.
 
 ## Workflow
 
-The scripts live in `scripts/` next to this file. Use this skill's own directory to build their paths. Write their JSON output to a temporary folder (or `./ai-visibility-audit-data/` if there is none), not into the user's project.
+The scripts live in `scripts/` next to this file. Use this skill's own directory to build their paths. Write their JSON output where the user or task says; otherwise to a temporary folder (or `./ai-visibility-audit-data/` if there is none), not into the user's project.
 
 ### Step 1: Scan first, then ask once
 
@@ -46,9 +46,11 @@ From the homepage title, opening text, headings, structured data and service-loo
 > 2. Main town / service area: **[guess]**
 > 3. Main services: **[guess list]**
 >
-> Optional, improves the audit: 1-3 competitors you worry about, your public Google Business Profile link, and whether you have Search Console, GA4 or an SEO data tool connected here.
+> Optional, improves the audit: 1-3 competitors you worry about, your public Google Business Profile link (or paste its name, category, hours, phone and website link), and whether you have Search Console, GA4 or an SEO data tool connected here.
 
-If the user can't answer (e.g., a non-interactive run), continue with your guesses and list them as assumptions at the top of the report.
+If the town the user gave differs from the address on the site (or the scan found two addresses), say so in the question and ask which is right. Don't silently pick one.
+
+If the user can't answer (e.g., a non-interactive run), continue with your guesses and list them in the report's assumptions block. When the user's town and the site's address disagree, run the checks with the site's address, add a finding about the mismatch, and add one AI answer prompt for the user's town too.
 
 If `python3` isn't available, do the checks with your own fetch and search tools: robots.txt and the pages can still be read, but mark the live crawler test (check 1d) "not checked: needs Python to send requests as each crawler".
 
@@ -58,11 +60,11 @@ If `python3` isn't available, do the checks with your own fetch and search tools
 python3 <skill-dir>/scripts/check_ai_access.py <url> --json <tmp>/access.json
 ```
 
-It reads robots.txt for 13 AI and search crawlers, then requests the homepage and one inner page with each crawler's user agent and compares the answer with a normal browser request. Pass `--inner <url>` to test a specific service page instead of the auto-picked one. Read `references/crawlers.md` for what each bot does and for the limit of this test (requests come from the user's computer, not the vendors' addresses), and `references/checklist.md` section 1 for how to report it.
+It reads robots.txt for 13 AI and search crawlers, then requests the homepage and one inner page with each crawler's user agent and compares the answer with a normal browser request. Every block is re-tested with `curl`, and the output ends with a **Pattern** line that says how to read the results as a whole. Firewalls often react to the test itself rather than to the bot, so go by the pattern, not by single rows: `client_flagged` and `fake_bot_filter_likely` are not AI blocks. Pass `--inner <url>` to test a specific service page instead of the auto-picked one. Read `references/crawlers.md` for what each bot does and for the limits of this test, and `references/checklist.md` section 1 for how to report it.
 
 ### Step 3: Audit areas 2-6
 
-Read `references/checklist.md` and work through areas 2-6 in order, using `site.json` first and loading pages or searching the web only where the scan didn't capture what you need. The checklist says what to look at, what counts as evidence, and which patterns are the high-value findings. Most of those patterns are things generic checklists miss:
+Read `references/checklist.md` and work through areas 2-6 in order, using `site.json` first (including `booking_links`, which lists every booking and next-step link with its status) and loading pages or searching the web only where the scan didn't capture what you need. If the scan notes that service pages were left out, rerun it with a higher `--max-pages` rather than fetching pages one by one. The checklist says what to look at, what counts as evidence, and which patterns are the high-value findings. Most of those patterns are things generic checklists miss:
 
 - robots.txt says "allow" while the CDN or firewall blocks AI bots.
 - A key service exists only as a bullet point, so a competitor with a dedicated page gets the recommendation.
@@ -79,14 +81,15 @@ If the user has Search Console, GA4 or an SEO data tool connected, use it to sup
 
 Read `references/prompt-templates.md`. Build 5-8 prompts the way a prospect would ask. Then:
 
-- **Mode B (automatic):** if you have web search, run the prompts and record who appears and which sources recur. Label it as an approximation.
+- **Mode B (automatic):** if you have web search, first run the sanity check in the prompt templates (does the search tool return the business's own site at all?), then run the prompts and record who appears and which sources recur. Label it as an approximation.
+- **Spot checks (if you have a real browser):** look at up to 3 real Google AI Overviews, not signed in, and label them "seen once". They are real AI answers, so they are the strongest evidence you can collect yourself.
 - **Mode A (the real test):** put the prompts and a blank scorecard in the report for the owner to run in ChatGPT, Perplexity, Gemini and Google AI Mode.
 
 Report "known by name" and "recommended" separately. A business can be described perfectly when asked about by name and still never be suggested to someone who doesn't know it. Make that gap visible.
 
 ### Step 5: Score and rank fixes
 
-Read `references/scoring.md`. Rate each area 0-5 against the anchors, compute the overall score from the rated areas only (never count "not checked" as zero), then choose the top 5 fixes: blockers first, then impact, then least effort. Each fix says what to do, where, who usually does it, and which findings it comes from.
+Read `references/scoring.md`. Rate each area 0-5 against the anchors, compute the overall score from the rated areas only (never count "not checked" as zero), apply the recommendation cap if the business wasn't recommended anywhere, then choose the top 5 fixes: blockers first, then impact, then least effort. Each fix says what to do, where, who usually does it, and which findings it comes from.
 
 ### Step 6: Write the report
 
