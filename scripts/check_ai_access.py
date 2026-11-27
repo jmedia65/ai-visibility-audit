@@ -24,6 +24,7 @@ The report wording should say "likely blocked" and suggest how to confirm.
 """
 
 import argparse
+import html
 import json
 import re
 import socket
@@ -180,7 +181,7 @@ def robots_decision(groups, token, path):
 
 # ---------------------------------------------------------------- fetching
 
-def fetch(url, ua, timeout):
+def fetch(url, ua, timeout, keep_bytes=False):
     """GET a URL. Never raises; returns a dict describing what came back."""
     req = urllib.request.Request(url, headers={
         "User-Agent": ua,
@@ -203,7 +204,8 @@ def fetch(url, ua, timeout):
         reason = getattr(e, "reason", e)
         return {"url": url, "status": None, "error": str(reason), "ms": int((time.time() - started) * 1000)}
     text = body.decode(_charset(headers), "replace")
-    return {
+    extra = {"raw": body} if keep_bytes else {}
+    return {**extra, 
         "url": url,
         "final_url": final,
         "status": status,
@@ -225,7 +227,7 @@ def _charset(headers):
 
 def _title(text):
     m = re.search(r"<title[^>]*>(.*?)</title>", text, re.I | re.S)
-    return re.sub(r"\s+", " ", m.group(1)).strip()[:150] if m else ""
+    return html.unescape(re.sub(r"\s+", " ", m.group(1))).strip()[:150] if m else ""
 
 
 def _markers(text):
