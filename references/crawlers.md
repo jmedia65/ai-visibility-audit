@@ -45,9 +45,11 @@ Many owners want "block training, allow search". The audit should check that the
 
 - OpenAI, Perplexity, Google, Bing and Apple publish full user-agent strings. The script uses them.
 - Anthropic publishes only the token names, so the script uses a short string containing the token (e.g., `Mozilla/5.0 (compatible; ClaudeBot/1.0)`). Firewalls usually match on the token, but this is an approximation.
-- The requests come from the auditor's computer, not from the vendors' published IP addresses. Some firewalls (Cloudflare's "verified bots" rules, for example) block a request that claims to be Googlebot but comes from a non-Google address. So:
-  - **"blocked" or "challenge" in the live test is strong evidence, not proof.** Report it as "likely blocked" and give the owner a way to confirm (see below).
-  - **A pattern is more convincing than one bot.** If browser requests pass and every AI bot is blocked, while `Googlebot` and `bingbot` are also blocked, the firewall may simply reject fake search bots. If AI bots are blocked but `Googlebot` and `bingbot` pass, an AI-specific block is very likely.
+- The requests come from the auditor's computer, not from the vendors' published IP addresses, and firewalls know it. Two kinds of false alarm are common, and the script handles both:
+  - **The firewall reacts to the test tool.** Cloudflare, for example, recognises the "fingerprint" of Python's web client and challenges it when it claims to be a known bot, while the same request from another tool gets through. The script re-tests every block with `curl` (installed by default on macOS, Windows 10+ and most Linux). If `curl` gets the real page, the result is `client_flagged`: **not a finding**, don't report it as a block.
+  - **The firewall rejects fake search bots in general.** If `Googlebot` and `bingbot` are blocked too, the firewall is probably rejecting anything that claims to be a well-known bot from the wrong address. The script's pattern is then `fake_bot_filter_likely`. That is normal protection and says little about real AI bots. Mention it in one line, with the confirm steps below, but don't present it as an AI block.
+- The script only flags `KEY FINDING` when its pattern is `ai_specific_block_likely`: AI bots blocked (confirmed with `curl`) while `Googlebot` and `bingbot` get through. Even then it is strong evidence, not proof. Report it as "likely blocked" and give the owner a way to confirm (see below).
+- Without `curl`, blocks can't be re-tested. The script says so; treat any block as unconfirmed.
 
 ### How the owner can confirm
 

@@ -17,18 +17,31 @@ Usage:
   python3 check_ai_access.py https://example.com --inner https://example.com/services/
   python3 check_ai_access.py https://example.com --json access.json
 
-Limit: requests come from your computer, not from the vendors' own IP
-addresses. Some firewalls block anything that claims to be a bot but comes
-from the wrong address, so a block seen here is strong evidence, not proof.
-The report wording should say "likely blocked" and suggest how to confirm.
+Limits, and how the script handles them:
+  - Requests come from your computer, not from the vendors' own IP addresses.
+  - Some firewalls (Cloudflare in particular) recognise the "fingerprint" of
+    Python's web client and challenge it when it claims to be a known bot,
+    while letting the same request through from other tools. So every block
+    is re-tested with curl when curl is installed (it ships with macOS,
+    Windows 10+ and most Linux). If curl gets the real page, the block is
+    reported as "client_flagged": a reaction to the test tool, not to the bot.
+  - If Googlebot and bingbot are blocked too, the firewall is probably
+    rejecting fake search bots in general; the script says so instead of
+    reporting an AI-specific block.
+A confirmed block is strong evidence, not proof. The report should say
+"likely blocked" and give the owner a way to confirm.
 """
 
 import argparse
 import html
 import json
 import re
+import os
+import shutil
 import socket
 import ssl
+import subprocess
+import tempfile
 import sys
 import time
 import urllib.error
@@ -199,6 +212,8 @@ def fetch(url, ua, timeout, keep_bytes=False):
             body = e.read(MAX_BYTES)
         except Exception:
             body = b""
+        finally:
+            e.close()
         status, headers, final = e.code, e.headers, e.geturl()
     except (urllib.error.URLError, socket.timeout, ssl.SSLError, ConnectionError, OSError) as e:
         reason = getattr(e, "reason", e)
@@ -215,6 +230,73 @@ def fetch(url, ua, timeout, keep_bytes=False):
         "text": text,
         "ms": int((time.time() - started) * 1000),
     }
+
+
+CURL = shutil.which("curl")
+
+
+def curl_fetch(url, ua, timeout):
+    """Same request as fetch(), sent with curl. Returns None if curl is missing."""
+    if not CURL:
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        hfile, bfile = os.path.join(tmp, "h"), os.path.join(tmp, "b")
+        cmd = [CURL, "-s", "-L", "--max-time", str(int(timeout)), "-A", ua,
+               "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+               "-H", "Accept-Language: en-US,en;q=0.9",
+               "-D", hfile, "-o", bfile, "-w", "%{http_code}", url]
+        try:
+            done = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 10)
+            status = int(done.stdout.strip() or 0)
+        except (subprocess.SubprocessError, ValueError, OSError) as e:
+            return {"url": url, "status": None, "error": f"curl failed: {e}"}
+        if not status:
+            return {"url": url, "status": None, "error": "curl got no response"}
+        headers = {}
+        try:
+            with open(hfile, encoding="latin-1") as fh:
+                raw_h = fh.read()
+            last = raw_h.strip().split("\r\n\r\n")[-1]  # headers of the final response after redirects
+            for line in last.splitlines()[1:]:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    headers[k.strip().lower()] = v.strip()
+            with open(bfile, "rb") as fb:
+                body = fb.read(MAX_BYTES)
+        except OSError:
+            body = b""
+    text = body.decode("utf-8", "replace")
+    return {"url": url, "status": status, "bytes": len(body), "title": _title(text),
+            "headers": headers, "text": text, "via": "curl"}
+
+
+def site_pattern(bots):
+    """Plain-English reading of the live results across all bots.
+
+    Returns (code, explanation). Uses each bot's final result (after the curl re-test).
+    """
+    final = {b["token"]: {l["result"] for l in b["live"]} for b in bots if b["live"]}
+    bad = {"blocked", "challenge"}
+    search_blocked = all(final.get(t, set()) & bad for t in ("Googlebot", "bingbot"))
+    ai_tokens = [b["token"] for b in bots if b["live"] and b["vendor"] in ("OpenAI", "Anthropic", "Perplexity")]
+    ai_blocked = [t for t in ai_tokens if final.get(t, set()) & bad]
+    flagged = [t for t, r in final.items() if "client_flagged" in r]
+    if search_blocked and ai_blocked:
+        return "fake_bot_filter_likely", (
+            "Googlebot and bingbot were blocked too, so the firewall is probably rejecting any request that "
+            "claims to be a well-known bot but doesn't come from that company's servers. That is normal "
+            "protection and says little about real AI bots. Not reported as an AI-specific block; "
+            "the owner can confirm in the firewall's security log.")
+    if ai_blocked:
+        return "ai_specific_block_likely", (
+            f"AI bots blocked while Googlebot and bingbot got through: {', '.join(ai_blocked)}. "
+            "This points to a setting that blocks AI bots specifically.")
+    if flagged:
+        return "client_flagged_only", (
+            f"The firewall challenged Python's requests for {', '.join(flagged)}, but the same requests sent "
+            "with curl got the real page. The firewall is reacting to the test tool, not the bot name, "
+            "so real bots are probably not affected. Not a finding.")
+    return "none", "No bot was blocked."
 
 
 def _charset(headers):
@@ -408,17 +490,41 @@ def run(url, inner=None, timeout=20, delay=0.4):
                 time.sleep(delay)
                 resp = fetch(u, bot["ua"], timeout)
                 result, detail = classify(resp, base)
-                row["live"].append({"page": label, "status": resp.get("status"), "result": result,
-                                    "detail": detail, "protection_hints": protection_hints(resp.get("headers"))})
-        row["key_finding"] = any(r["allowed"] for r in row["robots"]) and any(
-            l["result"] in ("blocked", "challenge") for l in row["live"])
+                entry = {"page": label, "status": resp.get("status"), "result": result, "detail": detail,
+                         "protection_hints": protection_hints(resp.get("headers")), "curl_status": None}
+                if result in ("blocked", "challenge", "different"):
+                    second = curl_fetch(u, bot["ua"], timeout)
+                    if second is None:
+                        entry["detail"] += " (not re-tested: curl not installed)"
+                    else:
+                        r2, d2 = classify(second, base)
+                        entry["curl_status"] = second.get("status")
+                        if r2 == "ok":
+                            entry["result"] = "client_flagged"
+                            entry["detail"] = (f"Python request: {detail}. Same request with curl: {d2}. "
+                                               "The firewall reacted to the test tool, not the bot name.")
+                        else:
+                            entry["detail"] += f" (confirmed with curl: {d2})"
+                row["live"].append(entry)
         results.append(row)
+    code, explanation = site_pattern(results)
+    for row in results:
+        row["key_finding"] = (code == "ai_specific_block_likely"
+                              and any(r["allowed"] for r in row["robots"])
+                              and any(l["result"] in ("blocked", "challenge") for l in row["live"]))
     out["bots"] = results
+    out["pattern"] = {"code": code, "explanation": explanation, "curl_available": bool(CURL)}
 
     # 4. llms.txt (informational only)
     ll = fetch(origin + "/llms.txt", BROWSER_UA, timeout)
     is_text = ll.get("status") == 200 and "<html" not in ll.get("text", "")[:500].lower()
-    out["llms_txt"] = {"url": origin + "/llms.txt", "status": ll.get("status"), "present": is_text,
+    if is_text:
+        ll_state = "present"
+    elif ll.get("status") == 200:
+        ll_state = "not present (the address returns a normal web page instead of a text file)"
+    else:
+        ll_state = f"not present (HTTP {ll.get('status')})"
+    out["llms_txt"] = {"url": origin + "/llms.txt", "status": ll.get("status"), "present": is_text, "state": ll_state,
                        "first_line": ll.get("text", "").strip().splitlines()[0][:150] if is_text and ll.get("text", "").strip() else None,
                        "note": "Informational only. Major AI search tools have not committed to using llms.txt."}
     return out
@@ -444,20 +550,23 @@ def summarize(r):
             rob += " / inner page differs"
         live = ", ".join(f"{l['page']}: {l['result']}" + (f" HTTP {l['status']}" if l["status"] else "") for l in b["live"]) \
             or "robots.txt rule only (this token never crawls by itself)"
-        flag = "  <-- KEY FINDING: robots.txt allows, server blocks" if b["key_finding"] else ""
+        flag = "  <-- KEY FINDING: robots.txt allows, server blocks AI bots" if b["key_finding"] else ""
         lines.append(f"{b['token']:<18}{b['vendor']:<16}{b['purpose']:<10}{rob[:33]:<34}{live}{flag}")
     lines.append("")
+    lines.append(f"Pattern: {r['pattern']['code']}. {r['pattern']['explanation']}")
+    if not r["pattern"]["curl_available"]:
+        lines.append("curl was not found, so blocks could not be re-tested with a second tool. Treat them with extra caution.")
     for b in r["bots"]:
         for l in b["live"]:
             if l["result"] not in ("ok",):
                 lines.append(f"  {b['token']} / {l['page']}: {l['result']}: {l['detail']}")
     ll = r["llms_txt"]
     lines.append("")
-    lines.append(f"llms.txt: {'present' if ll['present'] else 'not present'} (HTTP {ll['status']}). {ll['note']}")
+    lines.append(f"llms.txt: {ll['state']}. {ll['note']}")
     for n in r["notes"]:
         lines.append("Note: " + n)
     lines.append("Limit: requests came from this computer, not the vendors' IP addresses. "
-                 "A block here is strong evidence, not proof.")
+                 "A confirmed block is strong evidence, not proof.")
     return "\n".join(lines)
 
 

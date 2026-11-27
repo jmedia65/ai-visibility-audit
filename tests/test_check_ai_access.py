@@ -48,8 +48,12 @@ class FakeSite(http.server.BaseHTTPRequestHandler):
             return self._send(503, CHALLENGE, headers={"cf-mitigated": "challenge", "Server": "cloudflare"})
         if "PerplexityBot" in ua:
             return self._send(200, CHALLENGE)
-        if "Applebot" in ua:
+        if "Claude-User" in ua:
             return self._send(200, "<html><title>Hi</title>short</html>")
+        if "Applebot" in ua and self.headers.get("Accept-Encoding") == "identity":
+            # Python's urllib sends this header and curl doesn't: stands in for a
+            # firewall that recognises the test tool rather than the bot.
+            return self._send(403, CHALLENGE, headers={"cf-mitigated": "challenge"})
         return self._send(200, HOME, headers={"Server": "cloudflare"})
 
 
@@ -65,6 +69,7 @@ class LiveCheckTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
+        cls.server.server_close()
 
     def test_inner_page_picked_from_homepage_links(self):
         self.assertEqual(self.result["pages"][1]["url"], self.base + "/services/drain-cleaning/")
@@ -83,8 +88,25 @@ class LiveCheckTest(unittest.TestCase):
         self.assertEqual(self.bots["PerplexityBot"]["live"][0]["result"], "challenge")
 
     def test_much_smaller_page_flagged_different(self):
-        self.assertEqual(self.bots["Applebot"]["live"][0]["result"], "different")
+        self.assertEqual(self.bots["Claude-User"]["live"][0]["result"], "different")
+        self.assertFalse(self.bots["Claude-User"]["key_finding"])
+
+    @unittest.skipUnless(cac.CURL, "curl not installed")
+    def test_block_that_curl_passes_is_client_flagged(self):
+        apple = self.bots["Applebot"]["live"][0]
+        self.assertEqual(apple["result"], "client_flagged")
+        self.assertEqual(apple["curl_status"], 200)
         self.assertFalse(self.bots["Applebot"]["key_finding"])
+
+    @unittest.skipUnless(cac.CURL, "curl not installed")
+    def test_real_block_confirmed_with_curl(self):
+        self.assertIn("confirmed with curl", self.bots["GPTBot"]["live"][0]["detail"])
+
+    def test_pattern_is_ai_specific(self):
+        self.assertEqual(self.result["pattern"]["code"], "ai_specific_block_likely")
+
+    def test_llms_state_wording(self):
+        self.assertEqual(self.result["llms_txt"]["state"], "not present (HTTP 404)")
 
     def test_normal_bot_ok(self):
         self.assertEqual(self.bots["OAI-SearchBot"]["live"][0]["result"], "ok")
@@ -105,6 +127,25 @@ class LiveCheckTest(unittest.TestCase):
         text = cac.summarize(self.result)
         self.assertIn("KEY FINDING", text)
         self.assertIn("GPTBot", text)
+
+
+class PatternTest(unittest.TestCase):
+    def row(self, token, vendor, result):
+        return {"token": token, "vendor": vendor, "live": [{"result": result}]}
+
+    def test_search_bots_blocked_too_means_fake_bot_filter(self):
+        rows = [self.row("GPTBot", "OpenAI", "challenge"), self.row("Googlebot", "Google", "challenge"),
+                self.row("bingbot", "Microsoft Bing", "blocked"), self.row("ClaudeBot", "Anthropic", "ok")]
+        self.assertEqual(cac.site_pattern(rows)[0], "fake_bot_filter_likely")
+
+    def test_only_client_flagged(self):
+        rows = [self.row("GPTBot", "OpenAI", "client_flagged"), self.row("Googlebot", "Google", "ok"),
+                self.row("bingbot", "Microsoft Bing", "ok")]
+        self.assertEqual(cac.site_pattern(rows)[0], "client_flagged_only")
+
+    def test_all_ok(self):
+        rows = [self.row("GPTBot", "OpenAI", "ok"), self.row("Googlebot", "Google", "ok")]
+        self.assertEqual(cac.site_pattern(rows)[0], "none")
 
 
 class RobotsParserTest(unittest.TestCase):
