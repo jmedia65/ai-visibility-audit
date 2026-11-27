@@ -8,7 +8,7 @@ Built for owners and marketers of dentists, law firms, accountants, clinics, con
 
 A report saved as `AI-VISIBILITY-AUDIT-<domain>-<date>.md`, plus a short summary in chat. An excerpt from the [full sample report](examples/sample-report.md) for a fictional plumber:
 
-> **Score: 49 / 100** (scored on 7 of 7 areas). This is a trend line for comparing future audits, not a grade.
+> **Score: 51 / 100** (scored on 7 of 7 areas). This is a trend line for comparing future audits, not a grade.
 >
 > | # | Fix | Impact | Effort | Who |
 > |---|-----|--------|--------|-----|
@@ -74,15 +74,16 @@ The skill scans the site first, then asks one short round of questions (business
 | 4. Trust and proof | Review count, recency and detail vs competitors; testimonials; whether the site explains how pricing works |
 | 5. Local presence | Business Profile details vs the website, and name variations across the web |
 | 6. Content quality | Whether articles are original or copied word for word on other sites, on-topic, fresh, and lead to a next step |
-| 7. AI answer test | 5-8 prospect-style prompts: an automatic web search approximation, plus a scorecard for you to run them in ChatGPT, Perplexity, Gemini and Google AI Mode |
+| 7. AI answer test | 5-8 prospect-style prompts: an automatic web search approximation, up to 3 real Google AI Overview spot checks (if a browser is available), and a scorecard for you to run the prompts in ChatGPT, Perplexity, Gemini and Google AI Mode |
 
-Each area gets a 0-5 rating. The overall score out of 100 counts only the areas that could be checked. It's meant as a trend line between audits, not a grade. Details: [references/scoring.md](references/scoring.md).
+Each area gets a 0-5 rating. The overall score out of 100 counts only the areas that could be checked, and is capped at 59 if AI tools didn't recommend the business for any prompt (a well-built site that never gets recommended isn't doing well at AI visibility). It's meant as a trend line between audits, not a grade. Details: [references/scoring.md](references/scoring.md).
 
 ## Honest limits
 
 - **The automatic AI answer test is an approximation.** It shows which pages web search surfaces, the sources AI tools are likely to draw from, not what ChatGPT actually answers. The report labels it everywhere and gives you the prompts to run the real test yourself.
-- **The crawler test runs from your computer,** not from the AI companies' own servers. A block it finds is strong evidence, not proof, and the report tells you how to confirm it in your firewall settings.
-- **No logins and no scraping of Google Maps.** If the audit can't see your Business Profile, it marks that area "needs your input" and gives you a 5-minute self-check.
+- **The crawler test runs from your computer,** not from the AI companies' own servers. Firewalls sometimes react to the test itself, so every block is re-tested with a second tool and read as a pattern across all bots before it's reported. A confirmed block is strong evidence, not proof, and the report tells you how to confirm it in your firewall settings.
+- **No logins and no scraping of Google Maps.** With a browser, it opens the profile link you give it once and reads what's shown. Otherwise it asks you to paste the details, or marks that area "needs your input" and gives you a 5-minute self-check.
+- **AI Overview spot checks are seen once.** Real AI answers vary by person, place and time, so they're labeled as single observations.
 - **Nothing is guessed.** Anything the audit couldn't see is listed under "What wasn't checked".
 - It is not a rank tracker, a technical SEO crawler or a content writer. It doesn't promise rankings, citations or traffic, and it isn't legal or professional advice.
 
@@ -91,11 +92,12 @@ Each area gets a 0-5 rating. The overall score out of 100 counts only the areas 
 None are required. If your agent has these connected, the audit uses them:
 
 - **Web search:** enables the automatic AI answer approximation, review lookups and the copied-content check. Without it, those checks are marked "not checked".
+- **A real browser** (a browser pane or extension your agent can use): lets the audit read your Business Profile link and look at a few real Google AI Overviews.
 - **Google Search Console, GA4 or an SEO data tool:** supports findings with real data, such as how many searches are for your business name. The skill asks before using anything that costs credits.
 
 ## Requirements
 
-Network access, and Python 3.9 or later for the two bundled scripts (standard library only, nothing to install). Without Python, the audit still runs but skips the live crawler test.
+Network access, and Python 3.9 or later for the two bundled scripts (standard library only, nothing to install). `curl`, which comes with macOS, Windows 10+ and most Linux, is used to double-check crawler blocks when present. Without Python, the audit still runs but skips the live crawler test.
 
 ## For contributors
 

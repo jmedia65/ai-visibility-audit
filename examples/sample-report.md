@@ -10,7 +10,7 @@ The biggest problem is invisible to you: your website's security service is turn
 Your homepage is clear about who you are and where, and your drain-cleaning page is one of the best in the area.
 Unblocking those bots, fixing the booking link on your Google profile and getting a steady flow of reviews would remove the main reasons AI tools have to skip you.
 
-**Score: 49 / 100** (scored on 7 of 7 areas; area 7 is an approximation). This is a trend line for comparing future audits, not a grade.
+**Score: 51 / 100** (scored on 7 of 7 areas; area 7 is based on spot checks and an approximation). This is a trend line for comparing future audits, not a grade.
 
 ## 2. Top 5 fixes
 
@@ -47,7 +47,7 @@ Water heater installation, which you told us is your most profitable job, appear
 | 4. Trust and proof | 2 Needs work | 7 reviews, newest from 2024; no pricing explanation |
 | 5. Local presence | 3 Needs work | Profile found; broken booking link and wrong hours |
 | 6. Content quality | 1 Missing | 140 articles, most copied word for word on other sites |
-| 7. AI answer test | 3 (approximation) Needs work | Known by name, not found for recommendation searches |
+| 7. AI answer test | 3 (spot checks + approximation) Needs work | Known by name, not found for recommendation searches |
 
 ## 4. Findings by area
 
@@ -57,17 +57,17 @@ Water heater installation, which you told us is your most profitable job, appear
 
 | Crawler | Vendor | Job | robots.txt | Live test |
 |---------|--------|-----|------------|-----------|
-| OAI-SearchBot | OpenAI | Search | allowed | challenge (HTTP 403) |
-| ChatGPT-User | OpenAI | User-triggered | allowed | challenge (HTTP 403) |
-| Claude-SearchBot | Anthropic | Search | allowed | challenge (HTTP 403) |
-| Claude-User | Anthropic | User-triggered | allowed | challenge (HTTP 403) |
-| PerplexityBot | Perplexity | Search | allowed | challenge (HTTP 403) |
-| Perplexity-User | Perplexity | User-triggered | allowed | challenge (HTTP 403) |
-| GPTBot, ClaudeBot | OpenAI, Anthropic | Training | allowed | challenge (HTTP 403) |
+| OAI-SearchBot | OpenAI | Search | allowed | challenge (HTTP 403, confirmed with curl) |
+| ChatGPT-User | OpenAI | User-triggered | allowed | challenge (HTTP 403, confirmed with curl) |
+| Claude-SearchBot | Anthropic | Search | allowed | challenge (HTTP 403, confirmed with curl) |
+| Claude-User | Anthropic | User-triggered | allowed | challenge (HTTP 403, confirmed with curl) |
+| PerplexityBot | Perplexity | Search | allowed | challenge (HTTP 403, confirmed with curl) |
+| Perplexity-User | Perplexity | User-triggered | allowed | challenge (HTTP 403, confirmed with curl) |
+| GPTBot, ClaudeBot | OpenAI, Anthropic | Training | allowed | challenge (HTTP 403, confirmed with curl) |
 | Googlebot, bingbot, Applebot | Google, Bing, Apple | Search | allowed | OK (HTTP 200) |
 | Google-Extended, Applebot-Extended | Google, Apple | Training | allowed | robots.txt rule only |
 
-- **1.1 AI search bots get a challenge page despite robots.txt allowing them.** Requests to `https://oaklineplumbing.example/` and `/services/drain-cleaning/` with the user agents of six AI search and user-triggered bots returned HTTP 403 with the header `cf-mitigated: challenge` and the page title "Just a moment...". A normal browser got HTTP 200 and the real page. Google, Bing and Apple's bots got the real page, so this looks like an AI-specific block rather than a general bot filter. These requests came from our computer, not from the AI companies' own addresses, so this is strong evidence, not proof; your Cloudflare security log will confirm it. Why it matters: AI tools that can't read your pages can't recommend or cite them.
+- **1.1 AI search bots get a challenge page despite robots.txt allowing them.** Requests to `https://oaklineplumbing.example/` and `/services/drain-cleaning/` with the user agents of six AI search and user-triggered bots returned HTTP 403 with the header `cf-mitigated: challenge` and the page title "Just a moment...", and the same result when re-tested with a second request tool (curl). A normal browser got HTTP 200 and the real page. Google, Bing and Apple's bots got the real page, so this looks like an AI-specific block rather than a general bot filter. These requests came from our computer, not from the AI companies' own addresses, so this is strong evidence, not proof; your Cloudflare security log will confirm it. Why it matters: AI tools that can't read your pages can't recommend or cite them.
 - **1.2 robots.txt is fine.** `https://oaklineplumbing.example/robots.txt` (robots.txt: a file that tells crawlers which pages they may visit) loads (HTTP 200) and allows all crawlers with `User-agent: *` / `Allow: /`.
 - **1.3 No page-level blocks.** No `noindex` or `nosnippet` tags on the pages checked.
 - **1.4 No llms.txt.** `/llms.txt` returns 404. This is informational only: major AI search tools haven't committed to using it, and Google says no special AI file is needed.
@@ -122,6 +122,16 @@ Water heater installation, which you told us is your most profitable job, appear
 ## 5. AI answer test
 
 Being known by name is not the same as being recommended. Searches for your name find you and describe you correctly; searches a new customer would make don't find you at all.
+
+### Spot checks: real Google AI Overviews (seen once, 2026-03-02, not signed in)
+
+| Query | AI Overview shown? | You named? | Competitors named | Sources cited | What it said about you |
+|-------|--------------------|------------|-------------------|---------------|------------------------|
+| Is Oakline Plumbing in Riverside any good? | Yes | Yes | | your site, your Google profile | "a family-run plumber in Riverside ... reviews are limited" |
+| Who's a good plumber in Riverside? | Yes | No | Northgate, Riverside Rooter, Mill Valley | review sites, a "best plumbers" list article | |
+| Who can install a new water heater in Riverside? | Yes | No | Mill Valley | Mill Valley's water heater page | |
+
+These are real AI answers, seen once; they vary by person, place and time. Note the phrase "reviews are limited": that is the kind of caveat fix 4 removes.
 
 ### Mode B: web search approximation (not real AI answers)
 
