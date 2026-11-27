@@ -170,6 +170,17 @@ class TypeRulesTest(unittest.TestCase):
         self.assertEqual(types["https://x.example/resource-hub/topic-3/"], "article")
         self.assertEqual(types["https://x.example/services/drains/"], "service")
 
+    def test_prominent_homepage_link_is_scanned_first(self):
+        home = "https://x.example/"
+        cands = {f"https://x.example/page-{i}/": None for i in range(12)}
+        cands["https://x.example/a/b/gold-plan/"] = None  # odd URL, deep path
+        nav = [("https://x.example/a/b/gold-plan/", "Learn more")] * 3 + [("https://x.example/page-1/", "Team")]
+        prominent = scan_site.prominent_pages(nav, home)
+        self.assertEqual(prominent, {"https://x.example/a/b/gold-plan/": 3})
+        types = scan_site.type_urls(cands, {})
+        chosen, _ = scan_site.choose_pages(home, cands, 5, types, prominent)
+        self.assertEqual(chosen[1], "https://x.example/a/b/gold-plan/")
+
     def test_resource_center_is_article_not_pricing(self):
         self.assertEqual(scan_site.classify_url("https://x.example/resource-center/insurance/home-cover/"), "article")
 

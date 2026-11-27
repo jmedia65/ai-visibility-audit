@@ -30,7 +30,20 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_ai_access import BROWSER_UA, fetch, normalize  # noqa: E402
+from check_ai_access import BROWSER_UA, curl_fetch, fetch, normalize  # noqa: E402
+
+
+def fetch_page(url, timeout):
+    """Fetch as a browser would. If the firewall refuses Python's client
+    (401/403/429/503), retry once with curl, which firewalls often let through."""
+    r = fetch(url, BROWSER_UA, timeout)
+    if r.get("status") in (401, 403, 429, 503):
+        second = curl_fetch(url, BROWSER_UA, timeout)
+        if second and second.get("status") == 200:
+            second["final_url"] = url
+            second["fetched_with"] = f"curl (Python got HTTP {r['status']})"
+            return second
+    return r
 
 PAGE_TYPES = [
     ("article", re.compile(r"/(blog|news|articles?|insights|resources?|resource-cent(er|re)|posts?|learn|library|"
@@ -390,20 +403,41 @@ def type_urls(candidates, source):
 
 # ---------------------------------------------------------------- page choice
 
-def choose_pages(home, candidates, max_pages, types):
-    """Pick a balanced set: core pages first, then services, then recent articles."""
+PROMINENT_TEXT = re.compile(r"\b(learn more|read more|our services|services|what we do|see details|find out more)\b", re.I)
+
+
+def prominent_pages(nav, home):
+    """Homepage-linked pages that matter whatever their URL says: linked 3+ times,
+    or linked with "Learn more"-style text. Returns {url: link_count}."""
+    counts, prominent = {}, set()
+    for u, text in nav:
+        if u.rstrip("/") == home.rstrip("/"):
+            continue
+        counts[u] = counts.get(u, 0) + 1
+        if text and PROMINENT_TEXT.search(text):
+            prominent.add(u)
+    return {u: c for u, c in counts.items() if c >= 3 or u in prominent}
+
+
+def choose_pages(home, candidates, max_pages, types, prominent=None):
+    """Pick a balanced set: core pages and prominent homepage links first,
+    then services, then recent articles."""
+    prominent = prominent or {}
     by_type = {}
     for url, lastmod in candidates.items():
         by_type.setdefault(types[url], []).append((url, lastmod or ""))
     quota = [("about", 3), ("contact", 2), ("service", 20), ("pricing", 2), ("reviews", 2),
              ("location", 3), ("faq", 1), ("article", 6), ("other", 4)]
     chosen = [home]
+    for u, _ in sorted(prominent.items(), key=lambda x: -x[1])[:8]:
+        if u in candidates and types.get(u) != "article" and u not in chosen:
+            chosen.append(u)
     for t, n in quota:
         items = by_type.get(t, [])
         if t == "article":
             items = sorted(items, key=lambda x: x[1], reverse=True)
         else:
-            items = sorted(items, key=lambda x: (x[0].count("/"), len(x[0])))
+            items = sorted(items, key=lambda x: (-prominent.get(x[0], 0), x[0].count("/"), len(x[0])))
         for url, _ in items[:n]:
             if url not in chosen:
                 chosen.append(url)
@@ -447,7 +481,7 @@ def check_links(entries, timeout, delay, limit=25):
     out = []
     for e in entries:
         time.sleep(delay)
-        r = fetch(e["url"], BROWSER_UA, timeout)
+        r = fetch_page(e["url"], timeout)
         st = r.get("status")
         if st is None:
             result = "broken"
@@ -472,7 +506,7 @@ def run(url, max_pages=40, urls=None, timeout=20, delay=0.3):
     out = {"site": home, "notes": [], "label_warning":
            "Page types are guesses from URL patterns. Confirm before reporting."}
 
-    home_resp = fetch(home, BROWSER_UA, timeout)
+    home_resp = fetch_page(home, timeout)
     home_row, home_parser = analyze_page(home, home_resp)
     if home_resp.get("status") != 200:
         out["notes"].append(f"Homepage did not load normally: HTTP {home_resp.get('status')} {home_resp.get('error') or ''}")
@@ -514,7 +548,7 @@ def run(url, max_pages=40, urls=None, timeout=20, delay=0.3):
         for u, lm in candidates.items():
             by_type.setdefault(types[u], []).append((u, lm or ""))
     else:
-        chosen, by_type = choose_pages(home, candidates, max_pages, types)
+        chosen, by_type = choose_pages(home, candidates, max_pages, types, prominent_pages(nav, final_origin))
         skipped = {t: len(v) - sum(1 for u, _ in v if u in chosen) for t, v in by_type.items()}
         if skipped.get("service", 0) > 0:
             out["notes"].append(f"{skipped['service']} more service-type URLs were not scanned; "
@@ -529,8 +563,10 @@ def run(url, max_pages=40, urls=None, timeout=20, delay=0.3):
     page_links = [(home_resp.get("final_url") or home, home_parser.links if home_parser else [])]
     for u in chosen[1:]:
         time.sleep(delay)
-        resp = fetch(u, BROWSER_UA, timeout)
+        resp = fetch_page(u, timeout)
         row, parser = analyze_page(u, resp, types.get(u))
+        if resp.get("fetched_with"):
+            row["fetched_with"] = resp["fetched_with"]
         pages.append(row)
         if parser:
             page_links.append((resp.get("final_url") or u, parser.links))
