@@ -8,9 +8,11 @@ Built for owners and marketers of dentists, law firms, accountants, clinics, con
 
 ## What you get
 
-A report saved as `AI-VISIBILITY-AUDIT-<domain>-<date>.md`, plus a short summary in chat. An excerpt from the [full sample report](examples/sample-report.md) for a fictional plumber:
+A report saved as `AI-VISIBILITY-AUDIT-<domain>-<date>.md`, plus a short summary in chat. Here's an excerpt from the [full sample report](examples/sample-report.md) for a fictional plumber:
 
 > **Score: 51 / 100** (scored on 7 of 7 areas). This is a trend line for comparing future audits, not a grade.
+>
+> **Top 5 fixes**
 >
 > | # | Fix | Impact | Effort | Who |
 > |---|-----|--------|--------|-----|
