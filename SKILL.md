@@ -46,7 +46,10 @@ From the homepage title, opening text, headings, structured data and service-loo
 > 2. Main town / service area: **[guess]**
 > 3. Main services: **[guess list]**
 >
-> Optional, improves the audit: 1-3 competitors you worry about, your public Google Business Profile link (or paste its name, category, hours, phone and website link), and whether you have Search Console, GA4 or an SEO data tool connected here.
+> Optional, improves the audit:
+> - 1-3 competitors you worry about.
+> - Your Google Business Profile link. Easiest: search your business name on Google, click **Share** on your business panel, and paste the link (it starts with `share.google/`). A Google Maps link (`maps.app.goo.gl/...`) works too. Or paste the profile's name, category, hours, phone, website link and review count.
+> - Whether you have Search Console, GA4 or an SEO data tool connected here.
 
 If the town the user gave differs from the address on the site (or the scan found two addresses), say so in the question and ask which is right. Don't silently pick one.
 

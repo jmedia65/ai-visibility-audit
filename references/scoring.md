@@ -96,7 +96,7 @@ If the site has no articles, rate from service-page content quality (depth, spec
 | 1 | Not recommended; by-name results show wrong or negative information. |
 | 0 | Not findable even by name. |
 
-Rate from the strongest evidence you have: Mode A results the user pasted, then spot checks (real AI Overviews, seen once), then Mode B. Write which, e.g. **"3 (spot checks + approximation)"** or **"3 (approximation)"**. If the Mode B sanity check failed (the search tool didn't return the business's own site), Mode B alone can't support a rating below 3. With no evidence at all, the area is "not checked".
+Rate from the strongest evidence you have: Mode A results the user pasted, then spot checks (real AI Overviews, seen once), then Mode B. Write which, e.g. **"3 (spot checks + approximation)"** or **"3 (approximation)"**. If the Mode B sanity check failed (the search tool didn't return the business's own site), Mode B alone can't support a rating below 3. Ordinary Google results seen in a browser during spot checks (when no AI Overview appeared) are real search results, not AI answers: they can support a lower rating for what they show (e.g., the business appearing under two names), but say that no AI answer was seen. With no evidence at all, the area is "not checked".
 
 ## Overall score (out of 100)
 
@@ -111,8 +111,8 @@ Show it as e.g. **"62 / 100 (scored on 6 of 7 areas; Local presence not checked)
 
 A well-built site that AI tools never recommend is not "strong" at AI visibility. The audit exists to close that gap, so the score must not hide it.
 
-- **If the business was named in none of the recommendation prompts** (prompts 1-4 in `prompt-templates.md`), the overall score is **capped at 59**.
-- The cap applies only on reliable evidence: Mode A results the user pasted, or at least one spot check, or Mode B with a passing sanity check. Mode B alone with a failed sanity check never triggers it.
+- **If the business was named in none of the recommendation prompts** (prompts 1-4 in `prompt-templates.md`), the overall score is **capped at 59**. Being named inside a directory or "best of" list that the results surface counts as named (AI tools draw on those lists), but say "only via a directory" in the report.
+- The cap applies only on reliable evidence: Mode A results the user pasted, or at least one spot check where an AI Overview appeared, or Mode B with a passing sanity check. Mode B alone with a failed sanity check never triggers it.
 - Show both numbers so re-audits can track progress on both: **"Score: 59 / 100 (capped: not recommended in any of 5 recommendation searches; 83 before the cap)"**.
 - The summary's first sentence then names the recommendation gap.
 

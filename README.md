@@ -62,7 +62,7 @@ Why doesn't ChatGPT recommend us? Our site is https://example.com, we're a famil
 Re-audit https://example.com and compare with last month's report
 ```
 
-The skill scans the site first, then asks one short round of questions (business name, town, main services) with its own guesses filled in. Optionally, name 1-3 competitors and paste your public Google Business Profile link.
+The skill scans the site first, then asks one short round of questions (business name, town, main services) with its own guesses filled in. Optionally, name 1-3 competitors and paste your Google Business Profile link: search your business name on Google, click **Share** on your business panel, and copy the link (it starts with `share.google/`). A Google Maps link works too.
 
 ## What it checks
 

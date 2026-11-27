@@ -96,9 +96,10 @@ Mode B shows sources; it doesn't show what an AI tool says. If you have a real b
 
 Procedure:
 
+0. If you opened a `share.google` profile link (checklist area 5), that page is a Google search for the business's name and often carries an AI Overview. If it does, record it as your by-name spot check. It doesn't count toward the 3 searches, since you opened the page anyway.
 1. Pick **up to 3** of the prompts: 1 by-name prompt (e.g., "Is [business] in [town] any good?") and 2 recommendation prompts (the main service, and the most valuable service).
 2. Open `https://www.google.com/search?q=<prompt>` in the browser, one at a time. Don't sign in or out, and don't change settings.
-3. If an AI Overview appears, read it (expand "Show more" if needed). Record: was the business named, which competitors were named, which sources were cited, and a short quote of anything said about the business. If none appears, record "no AI Overview shown". That is also a result.
+3. If an AI Overview appears, read it (expand "Show more" if needed). Record: was the business named, which competitors were named, which sources were cited, and a short quote of anything said about the business. If none appears, record "no AI Overview shown". That is also a result, and the page still shows useful real evidence: which businesses appear in the local results, their review counts, and how the business's own name and pages appear. Record those in the same table, marked "(no AI Overview; ordinary results)".
 4. Stop if Google shows a CAPTCHA or an "unusual traffic" page. Don't solve it or retry; note it.
 5. Don't record the location Google shows in the page footer, and don't run more than 3 searches.
 
