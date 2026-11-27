@@ -1,3 +1,5 @@
+<img src=".claude-plugin/icon.png" alt="" width="96" align="right">
+
 # AI Visibility Audit
 
 An Agent Skill that checks how visible a local or regional service business is to AI assistants (ChatGPT, Claude, Perplexity, Gemini, Google AI Overviews and AI Mode) and gives the owner the five next fixes, ranked by impact and effort, with evidence for every finding.
