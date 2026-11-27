@@ -19,6 +19,8 @@ Rate each area with the anchors below. Pick the closest anchor; use the numbers 
 
 Training bots (`GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`) **do not lower the rating** when blocked. That is the owner's choice.
 
+Rate from the script's **Pattern** line, not from single rows: `client_flagged` results count as OK, and `fake_bot_filter_likely` doesn't lower the rating below 4 unless robots.txt or page-level rules also block AI search bots.
+
 ### 2. Clarity (weight 15)
 
 | Rating | Anchor |
@@ -37,7 +39,7 @@ Training bots (`GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`) **
 | 5 | Every main service has its own substantial page, naming the location, with question-style headings and a clear next step. |
 | 4 | Every main service has a page; some are thin or don't name the location. |
 | 3 | Most main services have pages; one important one is only a list item. |
-| 2 | About half the main services have pages. |
+| 2 | About half the main services have pages. Or: one services page where each main service has a real section (several paragraphs), but no separate pages. |
 | 1 | One general services page with a list. |
 | 0 | Services are only mentioned on the homepage, or not at all. |
 
@@ -52,7 +54,10 @@ Training bots (`GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`) **
 | 1 | Almost no proof of any kind. |
 | 0 | Nothing a stranger could use to trust the business. |
 
-If review counts could not be seen and the user did not provide them, rate 4c-4e only and mark the area **"partly checked"** in the scorecard.
+Reviews you couldn't see:
+
+- If the profile was seen (browser view or pasted) or web search was available, and no reviews showed up anywhere, that *is* the finding: AI tools see none either. Rate as "very few reviews" (2 at most).
+- If you had no way to look (no browser view of the profile, nothing pasted, no web search), rate 4c-4e only, mark the area **"partly checked"**, and don't rate above 3: a business can't be "strong" on trust when nobody could see its reviews.
 
 ### 5. Local presence (weight 10)
 
@@ -65,9 +70,9 @@ If review counts could not be seen and the user did not provide them, rate 4c-4e
 | 1 | Several serious errors. |
 | 0 | No profile found where one clearly should exist. |
 
-If the profile could not be seen, the area is **"not checked"** (needs your input), even if 5d was searched. Report 5d findings anyway.
+If the profile could not be seen at all, the area is **"not checked"** (needs your input), even if 5d was searched. Report 5d findings anyway. If only some fields were seen (e.g., the name from the link's redirect), rate on what was seen and mark the area **"partly checked"**.
 
-### 6. Content quality (weight 10)
+### 6. Content quality (weight 5)
 
 | Rating | Anchor |
 |---|---|
@@ -80,7 +85,7 @@ If the profile could not be seen, the area is **"not checked"** (needs your inpu
 
 If the site has no articles, rate from service-page content quality (depth, specificity, originality of wording) and say so.
 
-### 7. AI answer test (weight 10)
+### 7. AI answer test (weight 15)
 
 | Rating | Anchor |
 |---|---|
@@ -91,7 +96,7 @@ If the site has no articles, rate from service-page content quality (depth, spec
 | 1 | Not recommended; by-name results show wrong or negative information. |
 | 0 | Not findable even by name. |
 
-When only Mode B was run, write the rating as e.g. **"3 (approximation)"**. When Mode A results were pasted by the user, rate from those and say so. With neither, the area is "not checked".
+Rate from the strongest evidence you have: Mode A results the user pasted, then spot checks (real AI Overviews, seen once), then Mode B. Write which, e.g. **"3 (spot checks + approximation)"** or **"3 (approximation)"**. If the Mode B sanity check failed (the search tool didn't return the business's own site), Mode B alone can't support a rating below 3. With no evidence at all, the area is "not checked".
 
 ## Overall score (out of 100)
 
@@ -102,9 +107,18 @@ When only Mode B was run, write the rating as e.g. **"3 (approximation)"**. When
 
 Show it as e.g. **"62 / 100 (scored on 6 of 7 areas; Local presence not checked)"**. If fewer than 4 areas were scored, don't give an overall score; say there is not enough data.
 
+### Recommendation cap
+
+A well-built site that AI tools never recommend is not "strong" at AI visibility. The audit exists to close that gap, so the score must not hide it.
+
+- **If the business was named in none of the recommendation prompts** (prompts 1-4 in `prompt-templates.md`), the overall score is **capped at 59**.
+- The cap applies only on reliable evidence: Mode A results the user pasted, or at least one spot check, or Mode B with a passing sanity check. Mode B alone with a failed sanity check never triggers it.
+- Show both numbers so re-audits can track progress on both: **"Score: 59 / 100 (capped: not recommended in any of 5 recommendation searches; 83 before the cap)"**.
+- The summary's first sentence then names the recommendation gap.
+
 Bands for the summary sentence (wording, not a verdict):
 
-- 80-100: AI tools can find and understand the business; the fixes are refinements.
+- 80-100: AI tools can find, understand and recommend the business; the fixes are refinements. (Only reachable without the cap.)
 - 60-79: Solid base with clear gaps that cost recommendations.
 - 40-59: Real gaps; AI tools likely recommend competitors for some services.
 - 0-39: Major gaps; AI tools may struggle to find or recommend the business.

@@ -17,13 +17,17 @@ Use this structure exactly. Replace everything in [brackets].
 
 **Site:** [URL] · **Location:** [town / service area] · **Services checked:** [list] · **Date:** [YYYY-MM-DD]
 
+> **Assumptions** [only if something wasn't confirmed by the owner; otherwise leave this block out]
+> - [e.g., "Main services are my reading of the homepage: X, Y, Z. Correct me if others bring most of the work."]
+> - [e.g., "You said Millbrook; every address on the site says Riverside, so the checks use Riverside."]
+
 ## 1. Summary
 
 [Sentence 1: the single most important thing found.]
 [Sentence 2: what is working.]
 [Sentence 3: what fixing the top issues would change, stated without promises.]
 
-**Score: [NN] / 100** (scored on [N] of 7 areas[; X not checked]). This is a trend line for comparing future audits, not a grade.
+**Score: [NN] / 100** (scored on [N] of 7 areas[; X not checked][; capped: not recommended in any of N recommendation searches; NN before the cap]). This is a trend line for comparing future audits, not a grade.
 
 ## 2. Top 5 fixes
 
@@ -45,9 +49,9 @@ Use this structure exactly. Replace everything in [brackets].
 | 2. Clarity | | |
 | 3. Service coverage | | |
 | 4. Trust and proof | | |
-| 5. Local presence | [or "Not checked: needs your input"] | |
+| 5. Local presence | [or "Not checked: needs your input", or "N (partly checked)"] | |
 | 6. Content quality | | |
-| 7. AI answer test | [N (approximation)] | |
+| 7. AI answer test | [N (spot checks + approximation) / N (approximation) / N (your Mode A results)] | |
 
 ## 4. Findings by area
 
@@ -71,7 +75,13 @@ Use this structure exactly. Replace everything in [brackets].
 
 Being known by name is not the same as being recommended. [One or two sentences on what this audit found about the gap.]
 
+### Spot checks: real Google AI Overviews (seen once, [date], not signed in)
+
+[Only if you ran them. Table from prompt-templates.md section 4. One line after it: "These are real AI answers, seen once; they vary by person, place and time."]
+
 ### Mode B: web search approximation (not real AI answers)
+
+[If the sanity check failed, start with: "The search tool used here didn't return your website even for its own domain, so these results may understate how visible you are."]
 
 This shows which pages web search surfaces for these questions: the sources AI tools with search are likely to draw from. It does not show what ChatGPT, Gemini or any other AI tool actually answers. Search tool: [name/unknown], [date].
 
