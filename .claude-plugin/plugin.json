@@ -1,0 +1,13 @@
+{
+  "name": "ai-visibility-audit",
+  "version": "1.0.0",
+  "description": "Audit how visible a local service business is to AI assistants (ChatGPT, Claude, Perplexity, Gemini, Google AI Overviews) and get the five next fixes, ranked by impact and effort, with evidence.",
+  "author": {
+    "name": "Max Braglia",
+    "url": "https://maxbraglia.com"
+  },
+  "homepage": "https://maxbraglia.com",
+  "repository": "https://github.com/jmedia65/ai-visibility-audit",
+  "license": "MIT",
+  "keywords": ["ai-visibility", "aeo", "geo", "ai-search", "local-business", "audit", "chatgpt", "perplexity", "ai-overviews"]
+}

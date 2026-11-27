@@ -1,0 +1,20 @@
+{
+  "name": "ai-visibility-audit",
+  "owner": {
+    "name": "Max Braglia",
+    "url": "https://maxbraglia.com"
+  },
+  "metadata": {
+    "description": "AI visibility audit skill for local and regional service businesses.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ai-visibility-audit",
+      "source": "./",
+      "description": "Audit how visible a local service business is to AI assistants and get the five next fixes, with evidence.",
+      "version": "1.0.0",
+      "category": "marketing"
+    }
+  ]
+}
