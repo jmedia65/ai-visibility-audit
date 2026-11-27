@@ -26,9 +26,11 @@ A report saved as `AI-VISIBILITY-AUDIT-<domain>-<date>.md`, plus a short summary
 
 Every report has: a 3-sentence summary, the top 5 fixes, a scorecard, findings by area with evidence (URLs, quotes, status codes), the AI answer test, what wasn't checked and why, and a re-audit suggestion.
 
-## Install
+## Quick start
 
-**Claude Code (plugin).** In a terminal:
+You need [Claude Code](https://claude.com/product/claude-code), in the Claude desktop app or in a terminal.
+
+**1. Install.** Open a terminal and run these two commands:
 
 ```bash
 claude plugin marketplace add jmedia65/ai-visibility-audit
@@ -38,25 +40,19 @@ claude plugin marketplace add jmedia65/ai-visibility-audit
 claude plugin install ai-visibility-audit@ai-visibility-audit
 ```
 
-Or run the same two commands inside Claude Code as `/plugin marketplace add jmedia65/ai-visibility-audit` and `/plugin install ai-visibility-audit@ai-visibility-audit`.
+**2. Open Claude Code in a folder.** In the Claude desktop app, start a new session in the Code tab and choose a folder. Or, in a terminal, go to a folder and type `claude`. Reports are saved in that folder, so a dedicated folder such as `ai-audits` keeps them together.
 
-**Any supported agent (`npx skills`).** Needs Node.js 22.20 or later. From your project folder:
-
-```bash
-npx skills add jmedia65/ai-visibility-audit
-```
-
-Add `-g` to install it for all projects, or `-a claude-code`, `-a codex`, `-a cursor` to pick the agent.
-
-**Manual copy.** Download or clone this repository from GitHub and copy the whole folder, named `ai-visibility-audit`, into your agent's skills folder. For Claude Code that's `~/.claude/skills/ai-visibility-audit/` (all projects) or `.claude/skills/ai-visibility-audit/` (one project). For other agents, see the [skills CLI agent table](https://github.com/vercel-labs/skills/blob/main/docs/agents.md). In Claude apps that let you upload skills, zip the folder and upload it.
-
-## Use
-
-Ask in plain words:
+**3. Ask in plain words:**
 
 ```
 Audit https://example.com for a plumbing business in Riverside
 ```
+
+The skill scans the site, then asks a few quick questions. Have your Google Business Profile link ready: search your business name on Google, click **Share** on your business panel, and copy the link (it starts with `share.google/`).
+
+**Tip:** the desktop app gives the most complete audit. Its built-in browser lets the skill read your Google profile and check real Google AI Overviews.
+
+More things to ask:
 
 ```
 Why doesn't ChatGPT recommend us? Our site is https://example.com, we're a family dental practice in Oak Park
@@ -66,7 +62,25 @@ Why doesn't ChatGPT recommend us? Our site is https://example.com, we're a famil
 Re-audit https://example.com and compare with last month's report
 ```
 
-The skill scans the site first, then asks one short round of questions (business name, town, main services) with its own guesses filled in. Optionally, name 1-3 competitors and paste your Google Business Profile link: search your business name on Google, click **Share** on your business panel, and copy the link (it starts with `share.google/`). A Google Maps link works too.
+### Update or remove
+
+```bash
+claude plugin update ai-visibility-audit@ai-visibility-audit
+```
+
+```bash
+claude plugin uninstall ai-visibility-audit@ai-visibility-audit
+```
+
+### Other agents (Codex, Cursor and more)
+
+Needs Node.js 22.20 or later:
+
+```bash
+npx skills add jmedia65/ai-visibility-audit -g
+```
+
+Or download this repository and copy the folder, named `ai-visibility-audit`, into your agent's skills folder.
 
 ## What it checks
 

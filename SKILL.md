@@ -39,7 +39,7 @@ Run the site scan straight away, so your questions come with sensible guesses:
 python3 <skill-dir>/scripts/scan_site.py <url> --json <tmp>/site.json
 ```
 
-From the homepage title, opening text, headings, structured data and service-looking URLs, work out: the business name as customers would search it, the main town or service area, and the 3-6 main services. Then ask **one short round** of questions (skip anything the user already told you):
+From the homepage title, opening text, headings, structured data and service-looking URLs, work out: the business name as customers would search it, the main town or service area, and the 3-6 main services. Then ask **one short round** of questions and wait for the answer before Step 2. Ask it even when the user's first message already gave the town or the type of business: confirm those in one line, and always include the optional items, because the Business Profile link is the answer most worth waiting for. Leave out only what the user already told you.
 
 > I scanned [domain]. Please confirm or correct:
 > 1. Business name: **[guess]**
@@ -53,7 +53,7 @@ From the homepage title, opening text, headings, structured data and service-loo
 
 If the town the user gave differs from the address on the site (or the scan found two addresses), say so in the question and ask which is right. Don't silently pick one.
 
-If the user can't answer (e.g., a non-interactive run), continue with your guesses and list them in the report's assumptions block. When the user's town and the site's address disagree, run the checks with the site's address, add a finding about the mismatch, and add one AI answer prompt for the user's town too.
+Skip the round only when nobody can answer (e.g., a non-interactive run). Then continue with your guesses and list them in the report's assumptions block. When the user's town and the site's address disagree, run the checks with the site's address, add a finding about the mismatch, and add one AI answer prompt for the user's town too.
 
 If `python3` isn't available, do the checks with your own fetch and search tools: robots.txt and the pages can still be read, but mark the live crawler test (check 1d) "not checked: needs Python to send requests as each crawler".
 
