@@ -36,16 +36,27 @@ PAGES = {
                                       "<p>Most visits are a flat fee of $149 with a free estimate first.</p>"),
     "/about/": page("About", "<h1>Meet the team</h1><p>Founded by Dana Reyes, licensed master plumber.</p>",
                     '{"@type": "Organization", "name": "Oakline Plumbing Co"'),  # broken JSON on purpose
-    "/contact/": page("Contact", "<h1>Contact</h1><form></form><p>Call (555) 010-0199 after hours.</p>"),
+    "/contact/": page("Contact", "<h1>Contact</h1><form></form><p>Call (555) 010-0199 after hours.</p>"
+                      "<p>Fax 555-010-0177 4 Elm Road, Riverside, CA 90000</p>"),
+    "/spring-drain-tips/": page("Spring drain tips", "<h1>Spring drain tips</h1><p>Roots from street trees push into old "
+                                "clay sewer lines every spring, and the first sign is usually a gurgling ground-floor "
+                                "toilet after heavy rain.</p>"),
     "/blog/winter-pipes/": page(
         "Winter pipes", "<h1>Keeping pipes safe in winter</h1><p>When the overnight temperature in Riverside drops "
         "below freezing, uninsulated pipes along exterior walls are the first to split and flood a crawlspace. "
         "Short.</p>", json.dumps({"@type": "BlogPosting", "headline": "Winter pipes",
                                   "datePublished": "2026-01-15"})),
 }
-URLSET = ("<?xml version='1.0'?><urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>"
-          + "".join(f"<url><loc>{{base}}{p}</loc><lastmod>2026-01-15</lastmod></url>" for p in PAGES if p != "/")
-          + "</urlset>")
+
+
+def urlset(paths):
+    return ("<?xml version='1.0'?><urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>"
+            + "".join(f"<url><loc>{{base}}{p}</loc><lastmod>2026-01-15</lastmod></url>" for p in paths)
+            + "</urlset>")
+
+
+POST_SET = urlset(["/blog/winter-pipes/", "/spring-drain-tips/"])  # WordPress-style post at the root
+PAGE_SET = urlset([p for p in PAGES if p not in ("/", "/blog/winter-pipes/", "/spring-drain-tips/")])
 
 
 class FakeSite(http.server.BaseHTTPRequestHandler):
@@ -69,7 +80,8 @@ class FakeSite(http.server.BaseHTTPRequestHandler):
                     f"<sitemap><loc>{base}/page-sitemap.xml.gz</loc></sitemap></sitemapindex>")
             return self._send(200, body.encode(), "application/xml")
         if self.path in ("/page-sitemap.xml.gz", "/post-sitemap.xml.gz"):
-            return self._send(200, gzip.compress(URLSET.replace("{base}", base).encode()), "application/gzip")
+            body = POST_SET if self.path.startswith("/post") else PAGE_SET
+            return self._send(200, gzip.compress(body.replace("{base}", base).encode()), "application/gzip")
         if self.path in PAGES:
             return self._send(200, PAGES[self.path].encode(), "text/html; charset=utf-8")
         return self._send(404, b"<html><title>Not found</title></html>", "text/html")
@@ -90,7 +102,19 @@ class ScanSiteTest(unittest.TestCase):
         cls.server.server_close()
 
     def test_gzipped_sitemap_index_read(self):
-        self.assertEqual(self.r["sitemap"]["url_count"], 4)
+        self.assertEqual(self.r["sitemap"]["url_count"], 5)
+
+    def test_root_post_from_post_sitemap_is_article(self):
+        self.assertEqual(self.pages["/spring-drain-tips/"]["type"], "article")
+        self.assertEqual(self.r["articles"]["count"], 2)
+
+    def test_broken_booking_link_found(self):
+        broken = [b for b in self.r["booking_links"] if b["result"] == "broken"]
+        self.assertTrue(any(b["url"].endswith("/book/") and b["status"] == 404 for b in broken))
+
+    def test_fax_number_not_merged_into_address(self):
+        addrs = self.pages["/contact/"]["addresses"]
+        self.assertTrue(any(a.startswith("4 Elm Road") for a in addrs), addrs)
 
     def test_page_types_guessed(self):
         self.assertEqual(self.pages["/services/drain-cleaning/"]["type"], "service")
@@ -136,6 +160,18 @@ class ScanSiteTest(unittest.TestCase):
         text = scan_site.summarize(self.r)
         self.assertIn("quote-check", text)
         self.assertIn("[service]", text)
+
+
+class TypeRulesTest(unittest.TestCase):
+    def test_large_folder_treated_as_article_library(self):
+        urls = {f"https://x.example/resource-hub/topic-{i}/": None for i in range(30)}
+        urls["https://x.example/services/drains/"] = None
+        types = scan_site.type_urls(urls, {})
+        self.assertEqual(types["https://x.example/resource-hub/topic-3/"], "article")
+        self.assertEqual(types["https://x.example/services/drains/"], "service")
+
+    def test_resource_center_is_article_not_pricing(self):
+        self.assertEqual(scan_site.classify_url("https://x.example/resource-center/insurance/home-cover/"), "article")
 
 
 if __name__ == "__main__":

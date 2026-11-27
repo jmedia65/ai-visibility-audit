@@ -33,7 +33,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_ai_access import BROWSER_UA, fetch, normalize  # noqa: E402
 
 PAGE_TYPES = [
-    ("article", re.compile(r"/(blog|news|articles?|insights|resources|posts?|learn|library)/.+|/20\d\d/\d\d/", re.I)),
+    ("article", re.compile(r"/(blog|news|articles?|insights|resources?|resource-cent(er|re)|posts?|learn|library|"
+                           r"knowledge(-base|-center)?|guides?|education|tips|stories)/.+|/20\d\d/\d\d/", re.I)),
     ("service", re.compile(r"/(services?|practice-areas?|areas-of-practice|treatments?|what-we-do|solutions|"
                            r"procedures?|specialt(y|ies)|our-work)(/|$)", re.I)),
     ("about", re.compile(r"/(about|about-us|team|our-team|staff|people|attorneys|lawyers|doctors|providers|"
@@ -56,6 +57,15 @@ PRICE_PATTERNS = [
     (r"\b(pricing|prices|our fees|our rates|how much (does|do|will|is)|what (does|will) it cost)\b", "pricing words"),
     (r"\b(insurance|financing|payment plans?)\b", "insurance or financing"),
 ]
+BOOKING_HOSTS = re.compile(
+    r"(^|\.)(calendly\.com|acuityscheduling\.com|as\.me|square\.site|squareup\.com|vagaro\.com|fresha\.com|"
+    r"mindbodyonline\.com|janeapp\.com|zocdoc\.com|booksy\.com|setmore\.com|schedulicity\.com|youcanbook\.me|"
+    r"meetings\.hubspot\.com|tidycal\.com|savvycal\.com|cal\.com|simplybook\.me|housecallpro\.com|"
+    r"getjobber\.com|clienthub\.getjobber\.com|opentable\.com|resy\.com|nexhealth\.com|localmed\.com|"
+    r"glossgenius\.com|boulevard\.io|joinblvd\.com|appointy\.com|10to8\.com|typeform\.com|jotform\.com)$", re.I)
+CTA_PATH = re.compile(r"/(book|booking|schedule|appointments?|consult|consultation|contact|quote|request|get-started)", re.I)
+POSTLIKE_SITEMAP = re.compile(r"post|blog|article|news", re.I)
+LIBRARY_MIN = 25  # a folder with this many URLs is treated as an article collection
 REVIEW_PATTERNS = re.compile(r"\b(testimonials?|reviews?|rated|stars?|what (our )?(clients|patients|customers) say)\b", re.I)
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]\d{4}(?!\d)")
 US_ADDRESS_RE = re.compile(
@@ -225,8 +235,8 @@ def normalize_phone(p):
     return d[1:] if len(d) == 11 and d.startswith("1") else d
 
 
-def analyze_page(url, resp):
-    row = {"url": url, "type": classify_url(resp.get("final_url") or url), "status": resp.get("status"),
+def analyze_page(url, resp, page_type=None):
+    row = {"url": url, "type": page_type or classify_url(resp.get("final_url") or url), "status": resp.get("status"),
            "final_url": resp.get("final_url"), "error": resp.get("error")}
     if resp.get("status") != 200:
         return row, None
@@ -263,7 +273,8 @@ def analyze_page(url, resp):
         "jsonld_errors": errors,
         "microdata_types": sorted(p.microdata),
         "phones": phones,
-        "addresses": sorted({_clean(m.group(0)) for m in US_ADDRESS_RE.finditer(full)})[:5],
+        # phone numbers are blanked first so a fax or phone number can't merge into a street number
+        "addresses": sorted({_clean(m.group(0)) for m in US_ADDRESS_RE.finditer(PHONE_RE.sub(" | ", full))})[:5],
         "dates": dates[:10],
         "calls_to_action": ctas,
         "forms": p.forms,
@@ -271,7 +282,9 @@ def analyze_page(url, resp):
         "review_signals": sorted({m.group(0).lower() for m in REVIEW_PATTERNS.finditer(main)})[:10],
         "og_site_name": p.meta.get("og:site_name", ""),
     })
-    if row["type"] == "article" or any(t in ("Article", "BlogPosting", "NewsArticle") for t in row["jsonld_types"]):
+    if any(t in ("Article", "BlogPosting", "NewsArticle") for t in row["jsonld_types"]) and row["type"] in ("other", "pricing"):
+        row["type"] = "article"
+    if row["type"] == "article":
         row["distinctive_sentences"] = distinctive_sentences(" ".join(p.main_text))
     return row, p
 
@@ -307,8 +320,8 @@ def _read_one(sm, timeout):
 
 
 def read_sitemaps(origin, robots_sitemaps, timeout, max_files=12, max_urls=5000):
-    """Return ({url: lastmod}, notes). Tries robots.txt sitemaps, then common defaults."""
-    found, notes, seen = {}, [], set()
+    """Return ({url: lastmod}, notes, {url: sitemap_file}). Tries robots.txt sitemaps, then defaults."""
+    found, notes, seen, source = {}, [], set(), {}
     starts = [robots_sitemaps] if robots_sitemaps else []
     starts += [[origin + "/sitemap.xml"], [origin + "/sitemap_index.xml"], [origin + "/wp-sitemap.xml"]]
     files = 0
@@ -339,24 +352,51 @@ def read_sitemaps(origin, robots_sitemaps, timeout, max_files=12, max_urls=5000)
                             lastmod = (c.text or "").strip()
                     if loc:
                         found[loc] = lastmod
+                        source[loc] = sm
                         n += 1
                 notes.append(f"sitemap: {sm} ({n} URLs)")
         if found:
             break
     if files >= max_files:
         notes.append(f"stopped after {max_files} sitemap files; URL counts may be incomplete")
-    return found, notes
+    return found, notes, source
+
+
+# ---------------------------------------------------------------- page types
+
+def type_urls(candidates, source):
+    """Guess a type for every URL. Beyond the URL patterns, two rules catch
+    article collections the patterns miss: URLs listed in a post/blog sitemap
+    file (WordPress often puts posts at the root), and any folder holding
+    LIBRARY_MIN or more URLs that isn't a service or location folder
+    (bought-in content libraries)."""
+    types = {u: classify_url(u) for u in candidates}
+    for u, t in types.items():
+        sm = source.get(u, "")
+        if t in ("other", "pricing") and POSTLIKE_SITEMAP.search(sm.rsplit("/", 1)[-1]):
+            types[u] = "article"
+    folders = {}
+    for u in candidates:
+        seg = urllib.parse.urlparse(u).path.strip("/").split("/")
+        if len(seg) > 1:
+            folders.setdefault(seg[0], []).append(u)
+    for seg, urls in folders.items():
+        if len(urls) >= LIBRARY_MIN:
+            for u in urls:
+                if types[u] in ("other", "pricing", "reviews"):
+                    types[u] = "article"
+    return types
 
 
 # ---------------------------------------------------------------- page choice
 
-def choose_pages(home, candidates, max_pages):
+def choose_pages(home, candidates, max_pages, types):
     """Pick a balanced set: core pages first, then services, then recent articles."""
     by_type = {}
     for url, lastmod in candidates.items():
-        by_type.setdefault(classify_url(url), []).append((url, lastmod or ""))
-    quota = [("about", 3), ("contact", 2), ("service", 12), ("pricing", 2), ("reviews", 2),
-             ("location", 2), ("faq", 1), ("article", 5), ("other", 4)]
+        by_type.setdefault(types[url], []).append((url, lastmod or ""))
+    quota = [("about", 3), ("contact", 2), ("service", 20), ("pricing", 2), ("reviews", 2),
+             ("location", 3), ("faq", 1), ("article", 6), ("other", 4)]
     chosen = [home]
     for t, n in quota:
         items = by_type.get(t, [])
@@ -375,7 +415,57 @@ def same_site(url, host):
     return u.scheme in ("http", "https") and u.netloc.lower().removeprefix("www.") == host
 
 
-def run(url, max_pages=25, urls=None, timeout=20, delay=0.3):
+# ---------------------------------------------------------------- booking links
+
+def booking_links(page_links, host):
+    """Links that a prospect uses to take the next step: booking tools, and
+    contact/booking pages. page_links: [(page_url, [(href, text), ...]), ...]"""
+    found = {}
+    for page_url, links in page_links:
+        for href, text in links:
+            if href.lower().startswith(("tel:", "mailto:", "javascript:", "#", "sms:")):
+                continue
+            absu = urllib.parse.urljoin(page_url, href).split("#", 1)[0]
+            u = urllib.parse.urlparse(absu)
+            if u.scheme not in ("http", "https"):
+                continue
+            netloc = u.netloc.lower().removeprefix("www.")
+            third_party_booking = bool(BOOKING_HOSTS.search(netloc))
+            own_cta = netloc == host and (CTA_PATH.search(u.path) or (text and CTA_WORDS.search(text)))
+            if third_party_booking or own_cta:
+                entry = found.setdefault(absu, {"url": absu, "texts": set(), "found_on": set(),
+                                                "third_party": third_party_booking})
+                if text:
+                    entry["texts"].add(text[:60])
+                entry["found_on"].add(page_url)
+    return list(found.values())
+
+
+def check_links(entries, timeout, delay, limit=25):
+    """Load each link once as a browser would. Third-party booking tools first."""
+    entries = sorted(entries, key=lambda e: (not e["third_party"], -len(e["found_on"])))[:limit]
+    out = []
+    for e in entries:
+        time.sleep(delay)
+        r = fetch(e["url"], BROWSER_UA, timeout)
+        st = r.get("status")
+        if st is None:
+            result = "broken"
+        elif st in (404, 410) or st >= 500:
+            result = "broken"
+        elif st in (401, 403, 429):
+            result = "unclear"  # often bot protection; a person may see it fine
+        elif st >= 400:
+            result = "broken"
+        else:
+            result = "ok"
+        out.append({"url": e["url"], "status": st, "error": r.get("error"), "final_url": r.get("final_url"),
+                    "result": result, "link_texts": sorted(e["texts"]), "found_on": sorted(e["found_on"]),
+                    "found_on_count": len(e["found_on"]), "third_party": e["third_party"]})
+    return out
+
+
+def run(url, max_pages=40, urls=None, timeout=20, delay=0.3):
     home = normalize(url)
     origin = "{0.scheme}://{0.netloc}".format(urllib.parse.urlparse(home))
     host = urllib.parse.urlparse(home).netloc.lower().removeprefix("www.")
@@ -399,7 +489,7 @@ def run(url, max_pages=25, urls=None, timeout=20, delay=0.3):
 
     rob = fetch(origin + "/robots.txt", BROWSER_UA, timeout)
     robots_sitemaps = re.findall(r"(?im)^\s*sitemap:\s*(\S+)", rob.get("text", "")) if rob.get("status") == 200 else []
-    sitemap_urls, sm_notes = read_sitemaps(origin, robots_sitemaps, timeout)
+    sitemap_urls, sm_notes, sm_source = read_sitemaps(origin, robots_sitemaps, timeout)
     out["sitemap"] = {"sources": sm_notes, "url_count": len(sitemap_urls)}
     if not sitemap_urls:
         out["notes"].append("No readable XML sitemap found; pages were chosen from homepage links only.")
@@ -417,13 +507,18 @@ def run(url, max_pages=25, urls=None, timeout=20, delay=0.3):
     candidates.pop(home, None)
     candidates.pop(final_origin, None)
 
+    types = type_urls(candidates, sm_source)
     if urls:
         chosen = [home] + [normalize(u) for u in urls]
         by_type = {}
         for u, lm in candidates.items():
-            by_type.setdefault(classify_url(u), []).append((u, lm or ""))
+            by_type.setdefault(types[u], []).append((u, lm or ""))
     else:
-        chosen, by_type = choose_pages(home, candidates, max_pages)
+        chosen, by_type = choose_pages(home, candidates, max_pages, types)
+        skipped = {t: len(v) - sum(1 for u, _ in v if u in chosen) for t, v in by_type.items()}
+        if skipped.get("service", 0) > 0:
+            out["notes"].append(f"{skipped['service']} more service-type URLs were not scanned; "
+                                f"rerun with --max-pages {max_pages + 20} or list them with --urls.")
 
     out["url_inventory"] = {t: {"count": len(v), "sample": [u for u, _ in sorted(v)[:60]]} for t, v in sorted(by_type.items())}
     arts = sorted((lm for _, lm in by_type.get("article", []) if lm), reverse=True)
@@ -431,11 +526,16 @@ def run(url, max_pages=25, urls=None, timeout=20, delay=0.3):
                        "newest_lastmod": arts[0] if arts else None, "oldest_lastmod": arts[-1] if arts else None}
 
     pages = [home_row]
+    page_links = [(home_resp.get("final_url") or home, home_parser.links if home_parser else [])]
     for u in chosen[1:]:
         time.sleep(delay)
-        row, _ = analyze_page(u, fetch(u, BROWSER_UA, timeout))
+        resp = fetch(u, BROWSER_UA, timeout)
+        row, parser = analyze_page(u, resp, types.get(u))
         pages.append(row)
+        if parser:
+            page_links.append((resp.get("final_url") or u, parser.links))
     out["pages"] = pages
+    out["booking_links"] = check_links(booking_links(page_links, host), timeout, delay)
 
     # site-level consistency
     phones, names, addresses = {}, {}, {}
@@ -471,6 +571,14 @@ def summarize(r):
     a = r["articles"]
     if a["count"]:
         L.append(f"Articles: {a['count']} (newest lastmod {a['newest_lastmod']}, oldest {a['oldest_lastmod']})")
+    bl = r.get("booking_links", [])
+    broken = [b for b in bl if b["result"] == "broken"]
+    L.append(f"Booking / next-step links checked: {len(bl)}; broken: {len(broken)}")
+    for b in broken:
+        L.append(f"   BROKEN: {b['url']} -> {b['status'] or b['error']}  (link text {b['link_texts'][:2]}, on {b['found_on_count']} page(s))")
+    for b in bl:
+        if b["result"] == "unclear":
+            L.append(f"   unclear: {b['url']} -> HTTP {b['status']} (may be bot protection; check in a browser)")
     c = r["consistency"]
     L.append(f"Phones seen (number: pages): {c['phones'] or 'none found'}")
     L.append(f"Business names in structured data: {c['business_names_in_structured_data'] or 'none'}")
@@ -500,7 +608,7 @@ def summarize(r):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Collect audit evidence from a website.")
     ap.add_argument("url")
-    ap.add_argument("--max-pages", type=int, default=25, help="pages to scan in detail (default 25)")
+    ap.add_argument("--max-pages", type=int, default=40, help="pages to scan in detail (default 40)")
     ap.add_argument("--urls", nargs="*", help="scan exactly these pages (plus the homepage)")
     ap.add_argument("--json", help="write full results to this JSON file")
     ap.add_argument("--timeout", type=float, default=20)
